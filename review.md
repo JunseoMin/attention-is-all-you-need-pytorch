@@ -157,7 +157,7 @@ $$
 $$
 
 First, it performs a linear transformation to the hidden layer dimension. Then, it performs another linear transformation to the input dimension to achieve better model performance.
-> ??? For more nice feature and prevent gradiant decent??
+> ??? For nice feature and prevent gradiant venishing??
 
 ## 3. Layers.py
 Here is the code for encoder and decoder layers.
