@@ -151,6 +151,7 @@ class PositionwiseFeedForward(nn.Module):
         return x
 ```
 The notation for Positionwise Feed Forward is as follows:
+
 $$
   FFN(x) = \max{(0,xW_1+b_1)}W_2 + b_2
 $$
