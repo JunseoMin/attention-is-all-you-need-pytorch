@@ -1,7 +1,7 @@
 # Attention module & Transformer REVIEW
-code reciew with bottom-top approach for Transformer.
+code review with bottom-top approach for Transformer.
 
-#1 Modules.py
+# 1 Modules.py
 **ScaledDotProductAttention**
 ```Python
 class ScaledDotProductAttention(nn.Module):
@@ -25,10 +25,12 @@ class ScaledDotProductAttention(nn.Module):
         return output, attn
 ```
 The output of attention is like:
+
 $$
 softmax(\frac{QK^T}{\sqrt{d_k}})V
 $$
-In this implemeted code $\sqrt{d_k}$ initialized and utilized parameter ```self.temaerature``` and do calculation like upper notation.
+
+In this implemented code, $\sqrt{d_k}$ is initialized and utilized as the parameter ```self.temperature``` and is used for calculation as in the notation above.
 
 ## 2. Sublayers.py
 **multihead attention**
@@ -87,8 +89,7 @@ class MultiHeadAttention(nn.Module):
 ```
 ![alt text](image.png)
 
-Multi head attention module makes computation parallel by dividing model input dimension and get output by multiplying concated head outputs and output weight Matrix W.
-
+The multi-head attention module enables parallel computation by dividing the model input dimension and obtaining the output by multiplying concatenated head outputs and the output weight matrix $W$
 ```Python
         self.w_qs = nn.Linear(d_model, n_head * d_k, bias=False)
         self.w_ks = nn.Linear(d_model, n_head * d_k, bias=False)
@@ -100,8 +101,7 @@ This code initialize Linear Regression model for each subspace Q,K,V
 ```
         sz_b, len_q, len_k, len_v = q.size(0), q.size(1), k.size(1), v.size(1)
 ```
-This line get dimension of each projected subspace Q,K,V for parallized computation.
-
+This line gets the dimensions of each projected subspace Q, K, and V for parallelized computation.
 ```Python
         # Pass through the pre-attention projection: b x lq x (n*dv)
         # Separate different heads: b x lq x n x dv
@@ -109,11 +109,14 @@ This line get dimension of each projected subspace Q,K,V for parallized computat
         k = self.w_ks(k).view(sz_b, len_k, n_head, d_k)
         v = self.w_vs(v).view(sz_b, len_v, n_head, d_v)
 ```
-This code project Q,K,V to subspace and reshape for attention module calculation.
+
+This code projects Q, K, and V to subspaces and reshapes them for attention module calculation.
+
 ```Python
         q = q.transpose(1, 2).contiguous().view(sz_b, len_q, -1)
 ```
-This code concat output of each head.
+
+This code concatenates the outputs of each head.
 
 ```Python
         q = self.fc(q)
@@ -121,7 +124,7 @@ This code concat output of each head.
 
         q = self.layer_norm(q)
 ```
-With these lines can get output of multihead attention. FC net and residual connection, normalize output of each attention output value.
+These lines obtain the output of multi-head attention. The FC network and residual connection normalize the output of each attention output value.
 
 **Positionwised Feed foward**
 ```Python
@@ -147,18 +150,18 @@ class PositionwiseFeedForward(nn.Module):
 
         return x
 ```
-The notation of Positionwised Feed foward is like:
+The notation for Positionwise Feed Forward is as follows:
 $$
   FFN(x) = \max{(0,xW_1+b_1)}W_2 + b_2
 $$
-first, do linear transformation to hidden layer dimention. And second, linear transformate to input dimenstion to get more optimized model performance.
 
+First, it performs a linear transformation to the hidden layer dimension. Then, it performs another linear transformation to the input dimension to achieve better model performance.
 > ??? For more nice feature and prevent gradiant decent??
 
 ## 3. Layers.py
 Here is the code for encoder and decoder layers.
 
-### Encoder
+### Encoderlayer
 ```Python
 class EncoderLayer(nn.Module):
     ''' Compose with two layers '''
@@ -177,16 +180,16 @@ class EncoderLayer(nn.Module):
 ```
 ![encoder](<images/Screenshot from 2024-09-05 11-59-45.png>)
 
-**encoder constructor**
-- initialize multi head attention
-- initialize positionwise feed foward net
+**Encoder constructor**
+- Initialize multi head attention
+- Initialize positionwise feed foward net
 
-**foward function**
-- get attention output and feed foward to get encoder output
+**Foward function**
+- Obtains the attention output and feeds it forward to get the encoder output
 
 > From paper, the Transformer utilize 6 enclder layer to get output
 
-### Decoder
+### Decoderlayer
 ![Decoder](<images/Screenshot from 2024-09-05 12-04-19.png>)
 
 ```Python
@@ -211,22 +214,22 @@ class DecoderLayer(nn.Module):
 
 ```
 **Constructor**
-- initialize two attention for encoder attention and decoder itself.
-- initialize feed foward network
+- Initializes two attention mechanisms: one for encoder attention and one for decoder self-attention.
+- Initializes the feed forward network
 
 **Foward fuction**
 ```Python
         dec_output, dec_slf_attn = self.slf_attn(
             dec_input, dec_input, dec_input, mask=slf_attn_mask)
 ```
-this part, attention works with decoder input.
+This part handles self-attention within the decoder.
 
 
 ```Python
         dec_output, dec_enc_attn = self.enc_attn(
             dec_output, enc_output, enc_output, mask=dec_enc_attn_mask)
 ```
-this line utilize encoder output and decoder attention output to get decoder output before feed foward network.
+This line uses encoder output and decoder attention output to obtain decoder output before the feed-forward network.
 
 ## 4. Models.py
 ### Positional encoding
@@ -255,5 +258,101 @@ class PositionalEncoding(nn.Module):
     def forward(self, x):
         return x + self.pos_table[:, :x.size(1)].clone().detach()
 ```
+This code allows the Transformer model to understand the position of the sequence. Sinusoidal encoding is used because it may help the model extrapolate to sequence lengths longer than those encountered.
+
+### encoder
+```Python
+class Encoder(nn.Module):
+    ''' A encoder model with self attention mechanism. '''
+
+    def __init__(
+            self, n_src_vocab, d_word_vec, n_layers, n_head, d_k, d_v,
+            d_model, d_inner, pad_idx, dropout=0.1, n_position=200, scale_emb=False):
+
+        super().__init__()
+
+        self.src_word_emb = nn.Embedding(n_src_vocab, d_word_vec, padding_idx=pad_idx)
+        self.position_enc = PositionalEncoding(d_word_vec, n_position=n_position)
+        self.dropout = nn.Dropout(p=dropout)
+        self.layer_stack = nn.ModuleList([
+            EncoderLayer(d_model, d_inner, n_head, d_k, d_v, dropout=dropout)
+            for _ in range(n_layers)])
+        self.layer_norm = nn.LayerNorm(d_model, eps=1e-6)
+        self.scale_emb = scale_emb
+        self.d_model = d_model
+
+    def forward(self, src_seq, src_mask, return_attns=False):
+
+        enc_slf_attn_list = []
+
+        # -- Forward
+        enc_output = self.src_word_emb(src_seq)
+        if self.scale_emb:
+            enc_output *= self.d_model ** 0.5
+        enc_output = self.dropout(self.position_enc(enc_output))
+        enc_output = self.layer_norm(enc_output)
+
+        for enc_layer in self.layer_stack:
+            enc_output, enc_slf_attn = enc_layer(enc_output, slf_attn_mask=src_mask)
+            enc_slf_attn_list += [enc_slf_attn] if return_attns else []
+
+        if return_attns:
+            return enc_output, enc_slf_attn_list
+        return enc_output,
+```
+The encoder receives input word vectors and returns the output of the encoder layers.
+```enc_slf_attn_list``` contains the attention weights for visualization.
+
+### decoder
+
+```Python
+class Decoder(nn.Module):
+    ''' A decoder model with self attention mechanism. '''
+
+    def __init__(
+            self, n_trg_vocab, d_word_vec, n_layers, n_head, d_k, d_v,
+            d_model, d_inner, pad_idx, n_position=200, dropout=0.1, scale_emb=False):
+
+        super().__init__()
+
+        self.trg_word_emb = nn.Embedding(n_trg_vocab, d_word_vec, padding_idx=pad_idx)
+        self.position_enc = PositionalEncoding(d_word_vec, n_position=n_position)
+        self.dropout = nn.Dropout(p=dropout)
+        self.layer_stack = nn.ModuleList([
+            DecoderLayer(d_model, d_inner, n_head, d_k, d_v, dropout=dropout)
+            for _ in range(n_layers)])
+        self.layer_norm = nn.LayerNorm(d_model, eps=1e-6)
+        self.scale_emb = scale_emb
+        self.d_model = d_model
+
+    def forward(self, trg_seq, trg_mask, enc_output, src_mask, return_attns=False):
+
+        dec_slf_attn_list, dec_enc_attn_list = [], []
+
+        # -- Forward
+        dec_output = self.trg_word_emb(trg_seq)
+        if self.scale_emb:
+            dec_output *= self.d_model ** 0.5
+        dec_output = self.dropout(self.position_enc(dec_output))
+        dec_output = self.layer_norm(dec_output)
+
+        for dec_layer in self.layer_stack:
+            dec_output, dec_slf_attn, dec_enc_attn = dec_layer(
+                dec_output, enc_output, slf_attn_mask=trg_mask, dec_enc_attn_mask=src_mask)
+            dec_slf_attn_list += [dec_slf_attn] if return_attns else []
+            dec_enc_attn_list += [dec_enc_attn] if return_attns else []
+
+        if return_attns:
+            return dec_output, dec_slf_attn_list, dec_enc_attn_list
+        return dec_output,
+```
+The decoder receives encoder output and decoder input, and returns the decoder output which is feed-forwarded.
 
 ----
+## Overall flow
+![alt text](images/transformer.jpg)
+
+> **Questions**  
+> 1. why the positionwised feedfoward need..??
+> 2. is transformer studies Weights of Linear model??
+> 3. is multi head attention enables parallel compuutation??
